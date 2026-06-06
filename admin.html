@@ -48,6 +48,11 @@ h1{
     box-shadow:0 6px 18px rgba(0,0,0,.07);
 }
 
+.card.done{
+    background:#eeeeee;
+    opacity:.75;
+}
+
 .category{
     display:inline-block;
     background:#e8f1ff;
@@ -57,6 +62,17 @@ h1{
     font-size:14px;
     font-weight:700;
     margin-bottom:12px;
+}
+
+.done-label{
+    display:inline-block;
+    background:#777;
+    color:white;
+    padding:6px 12px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:700;
+    margin-left:8px;
 }
 
 .question{
@@ -70,6 +86,36 @@ h1{
     margin-top:14px;
     font-size:13px;
     color:#888;
+}
+
+.buttons{
+    display:flex;
+    gap:8px;
+    margin-top:16px;
+    flex-wrap:wrap;
+}
+
+button{
+    border:none;
+    padding:10px 14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.copy-btn{
+    background:#004A98;
+    color:white;
+}
+
+.done-btn{
+    background:#2e7d32;
+    color:white;
+}
+
+.delete-btn{
+    background:#c62828;
+    color:white;
 }
 
 .empty{
@@ -104,7 +150,10 @@ getFirestore,
 collection,
 query,
 orderBy,
-onSnapshot
+onSnapshot,
+doc,
+updateDoc,
+deleteDoc
 }
 from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
@@ -139,25 +188,73 @@ onSnapshot(q, (snapshot) => {
 
     let html = "";
 
-    snapshot.forEach((doc) => {
-        const data = doc.data();
+    snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const id = docSnap.id;
 
         let timeText = "";
         if(data.createdAt){
             timeText = data.createdAt.toDate().toLocaleString("ko-KR");
         }
 
+        const isDone = data.done === true;
+
         html += `
-            <div class="card">
-                <div class="category">${data.category}</div>
-                <div class="question">${data.question}</div>
+            <div class="card ${isDone ? "done" : ""}">
+                <div>
+                    <span class="category">${data.category}</span>
+                    ${isDone ? `<span class="done-label">답변 완료</span>` : ""}
+                </div>
+
+                <div class="question">${escapeHtml(data.question)}</div>
                 <div class="time">${timeText}</div>
+
+                <div class="buttons">
+                    <button class="copy-btn" onclick="copyQuestion('${encodeURIComponent(data.question)}')">
+                        질문 복사
+                    </button>
+
+                    <button class="done-btn" onclick="markDone('${id}')">
+                        답변 완료
+                    </button>
+
+                    <button class="delete-btn" onclick="deleteQuestion('${id}')">
+                        삭제
+                    </button>
+                </div>
             </div>
         `;
     });
 
     list.innerHTML = html;
 });
+
+window.copyQuestion = async (encodedQuestion) => {
+    const question = decodeURIComponent(encodedQuestion);
+    await navigator.clipboard.writeText(question);
+    alert("질문이 복사되었습니다.");
+};
+
+window.markDone = async (id) => {
+    await updateDoc(doc(db, "questions", id), {
+        done: true
+    });
+};
+
+window.deleteQuestion = async (id) => {
+    if(confirm("이 질문을 삭제할까요?")){
+        await deleteDoc(doc(db, "questions", id));
+    }
+};
+
+function escapeHtml(text){
+    return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
 
 </script>
 
